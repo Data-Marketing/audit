@@ -1,10 +1,9 @@
 /**
  * POST /api/analyze
- * Body: { businessName, websiteUrl, socialUrls: { facebook, instagram, tiktok, linkedin, youtube } }
+ * Body: { fullName, email, phone, companyName, productService, businessName, websiteUrl, socialUrls }
  * Returns: { jobId }
  *
- * Kicks off analysis in background (Vercel background functions are limited,
- * so we start the job, persist to Supabase, and return jobId for SSE polling).
+ * Saves lead to Supabase, kicks off analysis in background, links lead to report.
  */
 const { v4: uuidv4 } = require('uuid');
 const { createClient } = require('@supabase/supabase-js');
@@ -48,37 +47,79 @@ module.exports = async function handler(req, res) {
     return res.status(429).json({ error: 'Demasiadas solicitudes. Intenta en una hora.' });
   }
 
-  const { businessName, websiteUrl, socialUrls = {} } = req.body || {};
+  const {
+    fullName,
+    email,
+    phone,
+    companyName,
+    productService,
+    businessName,
+    websiteUrl,
+    socialUrls = {},
+  } = req.body || {};
 
-  if (!businessName || !websiteUrl) {
-    return res.status(400).json({ error: 'businessName y websiteUrl son requeridos' });
+  // Validate required lead fields
+  if (!fullName || !email || !phone || !companyName || !productService) {
+    return res.status(400).json({ error: 'Los datos de contacto son obligatorios.' });
   }
 
-  // Validate URL
-  try { new URL(websiteUrl); } catch {
-    return res.status(400).json({ error: 'websiteUrl no es una URL válida' });
+  // Validate at least one URL
+  const hasUrl =
+    (websiteUrl && websiteUrl.trim()) ||
+    Object.values(socialUrls).some(v => v && v.trim());
+
+  if (!hasUrl) {
+    return res.status(400).json({ error: 'Debes ingresar al menos un link (web o red social).' });
+  }
+
+  // Validate websiteUrl if provided
+  if (websiteUrl && websiteUrl.trim()) {
+    try { new URL(websiteUrl); } catch {
+      return res.status(400).json({ error: 'websiteUrl no es una URL válida' });
+    }
   }
 
   const jobId = uuidv4();
+  const effectiveBusinessName = businessName || companyName;
 
   try {
     const supabase = getSupabase();
-    const { error } = await supabase.from('reports').insert({
+
+    // 1. Create the report record
+    const { error: reportError } = await supabase.from('reports').insert({
       id: jobId,
-      business_name: businessName,
-      website_url: websiteUrl,
+      business_name: effectiveBusinessName,
+      website_url: websiteUrl || '',
       social_urls: socialUrls,
       status: 'pending',
     });
+    if (reportError) throw reportError;
 
-    if (error) throw error;
+    // 2. Save the lead, linked to this report
+    const { error: leadError } = await supabase.from('leads').insert({
+      full_name: fullName,
+      email,
+      phone,
+      company_name: companyName,
+      product_service: productService,
+      website_url: websiteUrl || null,
+      facebook_url: socialUrls.facebook || null,
+      instagram_url: socialUrls.instagram || null,
+      tiktok_url: socialUrls.tiktok || null,
+      linkedin_url: socialUrls.linkedin || null,
+      report_id: jobId,
+    });
+    if (leadError) {
+      // Non-fatal — log but don't block the analysis
+      console.error('Lead insert error:', leadError);
+    }
   } catch (err) {
     console.error('Supabase insert error:', err);
     return res.status(500).json({ error: 'Error al crear el reporte: ' + err.message });
   }
 
   // Trigger analysis in background (fire-and-forget within Vercel's 60s limit)
-  runAnalysisBackground(jobId, businessName, websiteUrl, socialUrls).catch(console.error);
+  runAnalysisBackground(jobId, effectiveBusinessName, websiteUrl || '', socialUrls).catch(console.error);
 
   res.status(202).json({ jobId });
 };

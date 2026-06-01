@@ -1,5 +1,5 @@
 /**
- * Main frontend JS — handles form submission and SSE progress
+ * Main frontend JS — two-step lead form + SSE progress
  */
 
 const STEP_LABELS = {
@@ -14,12 +14,59 @@ const STEP_LABELS = {
 
 const form = document.getElementById('auditForm');
 const submitBtn = document.getElementById('submitBtn');
+const nextBtn = document.getElementById('nextBtn');
+const backBtn = document.getElementById('backBtn');
 const overlay = document.getElementById('progressOverlay');
 const stepsContainer = document.getElementById('progressSteps');
 const formError = document.getElementById('formError');
+const step1Error = document.getElementById('step1Error');
 
 const stepEls = {};
 
+// ── Step navigation ──
+nextBtn.addEventListener('click', () => {
+  step1Error.style.display = 'none';
+
+  const fullName = document.getElementById('fullName').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+  const companyName = document.getElementById('companyName').value.trim();
+  const productService = document.getElementById('productService').value.trim();
+
+  if (!fullName || !email || !phone || !companyName || !productService) {
+    step1Error.textContent = 'Por favor completa todos los campos obligatorios.';
+    step1Error.style.display = 'block';
+    return;
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    step1Error.textContent = 'Por favor ingresa un email válido.';
+    step1Error.style.display = 'block';
+    return;
+  }
+
+  // Go to step 2
+  document.getElementById('step1').classList.remove('active');
+  document.getElementById('step2').classList.add('active');
+  document.getElementById('dot1').classList.remove('active');
+  document.getElementById('dot1').classList.add('done');
+  document.getElementById('dot1').textContent = '✓';
+  document.getElementById('line1').classList.add('done');
+  document.getElementById('dot2').classList.add('active');
+});
+
+backBtn.addEventListener('click', () => {
+  document.getElementById('step2').classList.remove('active');
+  document.getElementById('step1').classList.add('active');
+  document.getElementById('dot1').classList.remove('done');
+  document.getElementById('dot1').classList.add('active');
+  document.getElementById('dot1').textContent = '1';
+  document.getElementById('line1').classList.remove('done');
+  document.getElementById('dot2').classList.remove('active');
+  formError.style.display = 'none';
+});
+
+// ── Progress steps ──
 function addStep(name) {
   const label = STEP_LABELS[name] || name;
   const el = document.createElement('div');
@@ -45,25 +92,32 @@ function updateStep(name, status) {
   }
 }
 
+// ── Form submit ──
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   formError.style.display = 'none';
 
-  const businessName = document.getElementById('businessName').value.trim();
-  const websiteUrl = document.getElementById('websiteUrl').value.trim();
-  const socialUrls = {
-    facebook: document.getElementById('facebook').value.trim() || null,
-    instagram: document.getElementById('instagram').value.trim() || null,
-    tiktok: document.getElementById('tiktok').value.trim() || null,
-    linkedin: document.getElementById('linkedin').value.trim() || null,
-    youtube: document.getElementById('youtube').value.trim() || null,
-  };
+  const fullName = document.getElementById('fullName').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const phonePrefix = document.getElementById('phonePrefix').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+  const companyName = document.getElementById('companyName').value.trim();
+  const productService = document.getElementById('productService').value.trim();
 
-  if (!businessName || !websiteUrl) {
-    formError.textContent = 'Por favor completa los campos obligatorios.';
+  const websiteUrl = document.getElementById('websiteUrl').value.trim() || null;
+  const facebook = document.getElementById('facebook').value.trim() || null;
+  const instagram = document.getElementById('instagram').value.trim() || null;
+  const tiktok = document.getElementById('tiktok').value.trim() || null;
+  const linkedin = document.getElementById('linkedin').value.trim() || null;
+
+  // Validate at least one URL
+  if (!websiteUrl && !facebook && !instagram && !tiktok && !linkedin) {
+    formError.textContent = 'Debes ingresar al menos un link (web o red social) para continuar.';
     formError.style.display = 'block';
     return;
   }
+
+  const socialUrls = { facebook, instagram, tiktok, linkedin };
 
   submitBtn.disabled = true;
   document.getElementById('btnText').textContent = 'Iniciando análisis...';
@@ -71,8 +125,7 @@ form.addEventListener('submit', async (e) => {
   // Set up progress steps
   stepsContainer.innerHTML = '';
   Object.keys(stepEls).forEach(k => delete stepEls[k]);
-  addStep('web');
-  addStep('seo');
+  if (websiteUrl) { addStep('web'); addStep('seo'); }
   for (const [k, v] of Object.entries(socialUrls)) {
     if (v) addStep(k);
   }
@@ -83,7 +136,16 @@ form.addEventListener('submit', async (e) => {
     const res = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ businessName, websiteUrl, socialUrls }),
+      body: JSON.stringify({
+        fullName,
+        email,
+        phone: `${phonePrefix} ${phone}`,
+        companyName,
+        productService,
+        businessName: companyName,
+        websiteUrl: websiteUrl || '',
+        socialUrls,
+      }),
     });
 
     const data = await res.json();
@@ -94,7 +156,7 @@ form.addEventListener('submit', async (e) => {
   } catch (err) {
     overlay.classList.remove('active');
     submitBtn.disabled = false;
-    document.getElementById('btnText').textContent = 'Generar diagnóstico gratis';
+    document.getElementById('btnText').textContent = 'Obtener mi diagnóstico gratuito 🎁';
     formError.textContent = err.message;
     formError.style.display = 'block';
   }
@@ -120,7 +182,7 @@ function listenProgress(jobId) {
     try { msg = JSON.parse(e.data).message || msg; } catch {}
     overlay.classList.remove('active');
     submitBtn.disabled = false;
-    document.getElementById('btnText').textContent = 'Generar diagnóstico gratis';
+    document.getElementById('btnText').textContent = 'Obtener mi diagnóstico gratuito 🎁';
     formError.textContent = msg;
     formError.style.display = 'block';
   });

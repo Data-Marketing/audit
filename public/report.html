@@ -3,15 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Diagnóstico Digital</title>
+  <title>Audit — Diagnóstico Digital | Data Marketing</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="icon" href="/img/logo.svg" type="image/svg+xml" />
 </head>
 <body>
 
 <nav class="navbar no-print">
-  <img src="/img/logo.svg" class="logo" alt="Heros Digital" />
-  <span class="brand">Heros Digital</span>
+  <img src="/img/logo.svg" class="logo" alt="Data Marketing" />
+  <span class="brand">Audit</span>
 </nav>
 
 <div id="loadingState" class="loading-state">
@@ -24,6 +25,10 @@
 
     <!-- Header -->
     <div class="report-header">
+      <div class="report-header-logo">
+        <div class="audit-name">Audit</div>
+        <div class="audit-sub">Un producto de Data Marketing</div>
+      </div>
       <div class="report-header-meta">
         <div class="business-name" id="rBusinessName"></div>
         <div class="domain" id="rDomain"></div>
@@ -95,7 +100,7 @@
       <button onclick="window.print()" class="btn btn-outline">🖨️ Imprimir</button>
     </div>
 
-    <!-- Footer -->
+    <!-- Report footer -->
     <div class="report-footer">
       Diagnóstico generado con información pública ·
       <span id="rAgencyName"></span>
@@ -104,6 +109,10 @@
 
   </div>
 </div>
+
+<footer class="page-footer no-print">
+  Audit · Un producto de Data Marketing · <a href="https://audit.datamarketing.digital" target="_blank" rel="noopener">audit.datamarketing.digital</a>
+</footer>
 
 <script>
 const SOCIAL_ICONS = { facebook: '📘', instagram: '📷', tiktok: '🎵', linkedin: '💼', youtube: '▶️' };
@@ -154,7 +163,7 @@ async function loadReport() {
     return;
   }
 
-  document.title = `Diagnóstico — ${report.businessName}`;
+  document.title = `Audit — ${report.businessName} | Data Marketing`;
 
   // Header
   document.getElementById('rBusinessName').textContent = report.businessName;
@@ -192,7 +201,7 @@ async function loadReport() {
     const s = scoreData.available ? scoreData.score : null;
     const color = s !== null ? semColor(s) : 'na';
     cardsEl.innerHTML += `
-      <div class="area-card">
+      <div class="area-card border-${color}">
         <div class="area-card-icon">${AREA_ICONS[key] || '📊'}</div>
         <div class="area-card-name">${areaNames[key] || key}</div>
         <div class="area-card-score ${color}">${s !== null ? s + '/100' : 'N/A'}</div>
@@ -274,7 +283,7 @@ async function loadReport() {
   }
 
   // Agency footer
-  document.getElementById('rAgencyName').textContent = report.agencyName || 'Heros Digital';
+  document.getElementById('rAgencyName').textContent = report.agencyName || 'Data Marketing';
   if (report.agencyUrl) {
     document.getElementById('rAgencyUrl').innerHTML = ` · <a href="${report.agencyUrl}" target="_blank">${report.agencyUrl}</a>`;
   }

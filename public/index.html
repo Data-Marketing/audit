@@ -3,63 +3,108 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Diagnóstico Digital Heros</title>
+  <title>Audit — Diagnóstico Digital Gratuito | Data Marketing</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="icon" href="/img/logo.svg" type="image/svg+xml" />
 </head>
 <body>
 
 <nav class="navbar no-print">
-  <img src="/img/logo.svg" class="logo" alt="Heros Digital" />
-  <span class="brand">Heros Digital</span>
+  <img src="/img/logo.svg" class="logo" alt="Data Marketing" />
+  <span class="brand">Audit</span>
 </nav>
 
 <section class="hero">
-  <h1>Diagnóstico Digital Gratuito</h1>
-  <p class="subtitle">Descubre en minutos cómo está la presencia digital de tu negocio y qué debes mejorar para conseguir más clientes.</p>
+  <h1>¿Cómo está tu marca digital?</h1>
+  <p class="subtitle">Analiza tu presencia en internet en menos de 2 minutos. Gratis.</p>
+  <span class="free-badge">🎁 Diagnóstico 100% gratuito</span>
 
   <div class="form-card">
-    <h2>Ingresa los datos del negocio</h2>
+
+    <!-- Step indicator -->
+    <div class="step-indicator">
+      <div class="step-dot active" id="dot1">1</div>
+      <div class="step-line" id="line1"></div>
+      <div class="step-dot" id="dot2">2</div>
+    </div>
+
     <form id="auditForm">
 
-      <div class="form-group">
-        <label>Nombre del negocio *</label>
-        <input type="text" id="businessName" placeholder="Ej: Morales Mecánica" required />
+      <!-- ── STEP 1: Contact data ── -->
+      <div class="form-step active" id="step1">
+        <h2>Tus datos de contacto</h2>
+        <p class="form-step-subtitle">Para enviarte el diagnóstico personalizado necesitamos conocerte.</p>
+
+        <div class="form-group">
+          <label>Nombres y apellidos *</label>
+          <input type="text" id="fullName" placeholder="Ej: María García López" required />
+        </div>
+
+        <div class="form-group">
+          <label>Email *</label>
+          <input type="email" id="email" placeholder="tu@email.com" required />
+        </div>
+
+        <div class="form-group">
+          <label>Celular / WhatsApp *</label>
+          <div class="phone-row">
+            <input type="text" class="phone-prefix" id="phonePrefix" value="+51" />
+            <input type="tel" id="phone" placeholder="999 000 000" required style="flex:1;" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Marca o nombre de la empresa *</label>
+          <input type="text" id="companyName" placeholder="Ej: Restaurante El Sabor" required />
+        </div>
+
+        <div class="form-group">
+          <label>¿Qué producto o servicio ofrecen? *</label>
+          <textarea id="productService" placeholder="Ej: Vendemos ropa deportiva para mujeres a través de Instagram y tienda física en Lima." required></textarea>
+        </div>
+
+        <button type="button" class="btn btn-primary" id="nextBtn">
+          Continuar →
+        </button>
+        <p id="step1Error" style="color:var(--red);margin-top:12px;font-size:0.88rem;display:none;"></p>
       </div>
 
-      <div class="form-group">
-        <label>Sitio web *</label>
-        <input type="url" id="websiteUrl" placeholder="https://tunegocio.com" required />
+      <!-- ── STEP 2: Digital presence ── -->
+      <div class="form-step" id="step2">
+        <h2>Tu presencia digital</h2>
+        <p class="form-step-subtitle">Ingresa al menos un link para que podamos analizarte.</p>
+        <p class="at-least-one-note">* Al menos uno de los campos siguientes es obligatorio.</p>
+
+        <div class="form-group">
+          <label>Página web</label>
+          <input type="url" id="websiteUrl" placeholder="https://tunegocio.com" />
+        </div>
+        <div class="form-group">
+          <label>Facebook</label>
+          <input type="url" id="facebook" placeholder="https://facebook.com/tunegocio" />
+        </div>
+        <div class="form-group">
+          <label>Instagram</label>
+          <input type="url" id="instagram" placeholder="https://instagram.com/tunegocio" />
+        </div>
+        <div class="form-group">
+          <label>TikTok</label>
+          <input type="url" id="tiktok" placeholder="https://tiktok.com/@tunegocio" />
+        </div>
+        <div class="form-group">
+          <label>LinkedIn</label>
+          <input type="url" id="linkedin" placeholder="https://linkedin.com/company/tunegocio" />
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="submitBtn">
+          <span id="btnText">Obtener mi diagnóstico gratuito 🎁</span>
+        </button>
+        <button type="button" class="btn btn-secondary" id="backBtn">← Volver</button>
+
+        <p id="formError" style="color:var(--red);margin-top:12px;font-size:0.88rem;display:none;"></p>
       </div>
 
-      <p class="form-section-title">Redes sociales (opcional)</p>
-
-      <div class="form-group">
-        <label>Facebook</label>
-        <input type="url" id="facebook" placeholder="https://facebook.com/tunegocio" />
-      </div>
-      <div class="form-group">
-        <label>Instagram</label>
-        <input type="url" id="instagram" placeholder="https://instagram.com/tunegocio" />
-      </div>
-      <div class="form-group">
-        <label>TikTok</label>
-        <input type="url" id="tiktok" placeholder="https://tiktok.com/@tunegocio" />
-      </div>
-      <div class="form-group">
-        <label>LinkedIn</label>
-        <input type="url" id="linkedin" placeholder="https://linkedin.com/company/tunegocio" />
-      </div>
-      <div class="form-group">
-        <label>YouTube</label>
-        <input type="url" id="youtube" placeholder="https://youtube.com/@tunegocio" />
-      </div>
-
-      <button type="submit" class="btn btn-primary" id="submitBtn">
-        <span id="btnText">Generar diagnóstico gratis</span>
-      </button>
-
-      <p id="formError" style="color:var(--red);margin-top:12px;font-size:0.9rem;display:none;"></p>
     </form>
   </div>
 </section>
@@ -67,12 +112,16 @@
 <!-- Progress overlay -->
 <div class="progress-overlay" id="progressOverlay">
   <div class="progress-box">
-    <h3>Analizando tu negocio...</h3>
-    <p>Estamos revisando tu sitio web y redes sociales. Esto puede tomar hasta 2 minutos.</p>
+    <h3>Analizando tu marca digital...</h3>
+    <p>Estamos revisando tu sitio web y redes sociales.<br>Esto puede tomar hasta 2 minutos.</p>
     <div class="progress-steps" id="progressSteps"></div>
     <div class="spinner"></div>
   </div>
 </div>
+
+<footer class="page-footer no-print">
+  Audit · Un producto de <a href="https://datamarketing.digital" target="_blank" rel="noopener">Data Marketing</a> · <a href="https://audit.datamarketing.digital" target="_blank" rel="noopener">audit.datamarketing.digital</a>
+</footer>
 
 <script src="/js/main.js"></script>
 </body>

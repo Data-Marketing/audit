@@ -3,15 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vista Interna — Diagnóstico Digital</title>
+  <title>Vista Interna — Audit | Data Marketing</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="icon" href="/img/logo.svg" type="image/svg+xml" />
 </head>
 <body>
 
 <nav class="navbar no-print">
-  <img src="/img/logo.svg" class="logo" alt="Heros Digital" />
-  <span class="brand">Heros Digital <span class="internal-badge">VISTA INTERNA</span></span>
+  <img src="/img/logo.svg" class="logo" alt="Data Marketing" />
+  <span class="brand">Audit <span class="internal-badge">VISTA INTERNA</span></span>
 </nav>
 
 <div id="loadingState" class="loading-state">
@@ -113,12 +114,16 @@
     </div>
 
     <div class="report-footer">
-      Vista interna · Diagnóstico Digital Heros ·
+      Vista interna · Audit · Un producto de Data Marketing ·
       <span id="rAgencyName"></span>
     </div>
 
   </div>
 </div>
+
+<footer class="page-footer no-print">
+  Audit · Un producto de Data Marketing · <a href="https://audit.datamarketing.digital" target="_blank" rel="noopener">audit.datamarketing.digital</a>
+</footer>
 
 <script>
 const SOCIAL_ICONS = { facebook: '📘', instagram: '📷', tiktok: '🎵', linkedin: '💼', youtube: '▶️' };
@@ -350,7 +355,7 @@ async function loadReport() {
   const savedNotes = localStorage.getItem(`notes_${reportId}`);
   if (savedNotes) document.getElementById('notesTextarea').value = savedNotes;
 
-  document.getElementById('rAgencyName').textContent = report.agencyName || 'Heros Digital';
+  document.getElementById('rAgencyName').textContent = report.agencyName || 'Data Marketing';
 
   document.getElementById('loadingState').style.display = 'none';
   document.getElementById('reportContent').style.display = 'block';
