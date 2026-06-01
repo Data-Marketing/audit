@@ -7,7 +7,6 @@
     "node": ">=18"
   },
   "scripts": {
-    "dev": "node -e \"require('http').createServer((req,res)=>{res.writeHead(200);res.end('dev server — use vercel dev')}).listen(3000)\"",
     "test": "node scripts/test-collectors.js"
   },
   "dependencies": {
