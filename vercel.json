@@ -1,0 +1,9 @@
+{
+  "functions": {
+    "api/**/*.js": { "maxDuration": 60 }
+  },
+  "rewrites": [
+    { "source": "/report/:reportId", "destination": "/report.html" },
+    { "source": "/report-internal/:reportId", "destination": "/report-internal.html" }
+  ]
+}

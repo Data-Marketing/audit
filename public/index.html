@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Diagnóstico Digital Heros</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="icon" href="/img/logo.svg" type="image/svg+xml" />
+</head>
+<body>
+
+<nav class="navbar no-print">
+  <img src="/img/logo.svg" class="logo" alt="Heros Digital" />
+  <span class="brand">Heros Digital</span>
+</nav>
+
+<section class="hero">
+  <h1>Diagnóstico Digital Gratuito</h1>
+  <p class="subtitle">Descubre en minutos cómo está la presencia digital de tu negocio y qué debes mejorar para conseguir más clientes.</p>
+
+  <div class="form-card">
+    <h2>Ingresa los datos del negocio</h2>
+    <form id="auditForm">
+
+      <div class="form-group">
+        <label>Nombre del negocio *</label>
+        <input type="text" id="businessName" placeholder="Ej: Morales Mecánica" required />
+      </div>
+
+      <div class="form-group">
+        <label>Sitio web *</label>
+        <input type="url" id="websiteUrl" placeholder="https://tunegocio.com" required />
+      </div>
+
+      <p class="form-section-title">Redes sociales (opcional)</p>
+
+      <div class="form-group">
+        <label>Facebook</label>
+        <input type="url" id="facebook" placeholder="https://facebook.com/tunegocio" />
+      </div>
+      <div class="form-group">
+        <label>Instagram</label>
+        <input type="url" id="instagram" placeholder="https://instagram.com/tunegocio" />
+      </div>
+      <div class="form-group">
+        <label>TikTok</label>
+        <input type="url" id="tiktok" placeholder="https://tiktok.com/@tunegocio" />
+      </div>
+      <div class="form-group">
+        <label>LinkedIn</label>
+        <input type="url" id="linkedin" placeholder="https://linkedin.com/company/tunegocio" />
+      </div>
+      <div class="form-group">
+        <label>YouTube</label>
+        <input type="url" id="youtube" placeholder="https://youtube.com/@tunegocio" />
+      </div>
+
+      <button type="submit" class="btn btn-primary" id="submitBtn">
+        <span id="btnText">Generar diagnóstico gratis</span>
+      </button>
+
+      <p id="formError" style="color:var(--red);margin-top:12px;font-size:0.9rem;display:none;"></p>
+    </form>
+  </div>
+</section>
+
+<!-- Progress overlay -->
+<div class="progress-overlay" id="progressOverlay">
+  <div class="progress-box">
+    <h3>Analizando tu negocio...</h3>
+    <p>Estamos revisando tu sitio web y redes sociales. Esto puede tomar hasta 2 minutos.</p>
+    <div class="progress-steps" id="progressSteps"></div>
+    <div class="spinner"></div>
+  </div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

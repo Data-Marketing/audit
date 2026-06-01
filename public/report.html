@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Diagnóstico Digital</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="icon" href="/img/logo.svg" type="image/svg+xml" />
+</head>
+<body>
+
+<nav class="navbar no-print">
+  <img src="/img/logo.svg" class="logo" alt="Heros Digital" />
+  <span class="brand">Heros Digital</span>
+</nav>
+
+<div id="loadingState" class="loading-state">
+  <div class="spinner"></div>
+  <p>Cargando diagnóstico...</p>
+</div>
+
+<div id="reportContent" style="display:none;">
+  <div class="report-page">
+
+    <!-- Header -->
+    <div class="report-header">
+      <div class="report-header-meta">
+        <div class="business-name" id="rBusinessName"></div>
+        <div class="domain" id="rDomain"></div>
+        <div class="social-tags" id="rSocialTags"></div>
+        <div class="date" id="rDate"></div>
+      </div>
+      <div class="score-circle-wrap">
+        <div class="score-circle" id="rScoreCircle">
+          <div class="score-number" id="rScoreNumber"></div>
+          <div class="score-total">/100</div>
+        </div>
+        <div id="rBadge" class="score-badge"></div>
+      </div>
+    </div>
+
+    <!-- Area summary cards -->
+    <div class="section">
+      <div class="section-title">Resumen por área</div>
+      <div class="area-cards" id="rAreaCards"></div>
+    </div>
+
+    <!-- Critical findings -->
+    <div id="rFindingsSection" style="display:none;">
+      <div class="findings-block">
+        <h2>⚠️ Lo que más te está costando hoy</h2>
+        <div id="rFindings"></div>
+      </div>
+    </div>
+
+    <!-- Web block -->
+    <div id="rWebBlock" style="display:none;" class="section">
+      <div class="section-title">Tu sitio web</div>
+      <div class="indicator-block">
+        <div id="rWebIndicators"></div>
+      </div>
+    </div>
+
+    <!-- Google block -->
+    <div id="rGoogleBlock" style="display:none;" class="section">
+      <div class="section-title">Visibilidad en Google</div>
+      <div class="indicator-block">
+        <div id="rGoogleIndicators"></div>
+      </div>
+    </div>
+
+    <!-- Social blocks -->
+    <div id="rSocialSection" class="section" style="display:none;">
+      <div class="section-title">Redes sociales</div>
+      <div class="social-grid" id="rSocialGrid"></div>
+    </div>
+
+    <!-- AI diagnosis -->
+    <div id="rAiBlock" style="display:none;" class="ai-block">
+      <h2>🤖 Diagnóstico con Inteligencia Artificial</h2>
+      <p class="ai-narrative" id="rAiNarrative"></p>
+      <ol class="ai-recs" id="rAiRecs"></ol>
+    </div>
+
+    <!-- CTA -->
+    <div id="rCta" style="display:none;" class="cta-block no-print">
+      <h2>¿Listo para mejorar tu presencia digital?</h2>
+      <p>Hablemos sobre cómo podemos implementar estas mejoras para tu negocio.</p>
+      <a href="#" id="rCtaLink" class="btn-cta" target="_blank" rel="noopener">Hablar con un experto</a>
+    </div>
+
+    <!-- Export -->
+    <div class="action-bar no-print">
+      <a href="#" id="rPdfBtn" class="btn btn-outline">📄 Descargar PDF</a>
+      <button onclick="window.print()" class="btn btn-outline">🖨️ Imprimir</button>
+    </div>
+
+    <!-- Footer -->
+    <div class="report-footer">
+      Diagnóstico generado con información pública ·
+      <span id="rAgencyName"></span>
+      <span id="rAgencyUrl"></span>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const SOCIAL_ICONS = { facebook: '📘', instagram: '📷', tiktok: '🎵', linkedin: '💼', youtube: '▶️' };
+const SOCIAL_LABELS = { facebook: 'Facebook', instagram: 'Instagram', tiktok: 'TikTok', linkedin: 'LinkedIn', youtube: 'YouTube' };
+const AREA_ICONS = { web: '🌐', google: '🔍', facebook: '📘', instagram: '📷', tiktok: '🎵', linkedin: '💼', youtube: '▶️' };
+
+function getReportId() {
+  const parts = window.location.pathname.split('/');
+  return parts[parts.length - 1] || parts[parts.length - 2];
+}
+
+function semColor(score) {
+  if (score >= 80) return 'verde';
+  if (score >= 60) return 'amarillo';
+  return 'rojo';
+}
+
+function badgeLabel(sem) {
+  return sem === 'verde' ? 'Presencia Sólida' : sem === 'amarillo' ? 'En Desarrollo' : 'Necesita Atención';
+}
+
+function renderIndicators(container, indicators) {
+  container.innerHTML = indicators.map(ind => `
+    <div class="indicator-row">
+      <div class="indicator-dot dot-${ind.estado}"></div>
+      <div class="indicator-content">
+        <div class="indicator-name">${ind.nombre}</div>
+        <div class="indicator-value">${ind.valorMedido}</div>
+        <div class="indicator-text">${ind.interpretacion}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function loadReport() {
+  const reportId = getReportId();
+  if (!reportId) { document.getElementById('loadingState').innerHTML = '<p>Reporte no encontrado.</p>'; return; }
+
+  document.getElementById('rPdfBtn').href = `/api/export/pdf/${reportId}`;
+
+  let report;
+  try {
+    const res = await fetch(`/api/report/${reportId}`);
+    if (!res.ok) throw new Error('No encontrado');
+    report = await res.json();
+  } catch {
+    document.getElementById('loadingState').innerHTML = '<p style="color:var(--red)">No se pudo cargar el diagnóstico. Verifica la URL.</p>';
+    return;
+  }
+
+  document.title = `Diagnóstico — ${report.businessName}`;
+
+  // Header
+  document.getElementById('rBusinessName').textContent = report.businessName;
+  const domain = (() => { try { return new URL(report.websiteUrl).hostname; } catch { return report.websiteUrl; } })();
+  document.getElementById('rDomain').textContent = domain;
+
+  const date = new Date(report.generatedAt).toLocaleDateString('es-PE', { year:'numeric', month:'long', day:'numeric' });
+  document.getElementById('rDate').textContent = `Análisis del ${date}`;
+
+  // Social tags
+  const tagsEl = document.getElementById('rSocialTags');
+  if (report.socialUrls) {
+    for (const [k, v] of Object.entries(report.socialUrls)) {
+      if (v) tagsEl.innerHTML += `<span class="social-tag">${SOCIAL_ICONS[k] || ''} ${SOCIAL_LABELS[k] || k}</span>`;
+    }
+  }
+
+  // Score circle
+  const sem = report.semaforo;
+  const circle = document.getElementById('rScoreCircle');
+  circle.classList.add(sem);
+  document.getElementById('rScoreNumber').textContent = report.globalScore;
+  const badge = document.getElementById('rBadge');
+  badge.textContent = badgeLabel(sem);
+  badge.className = `score-badge badge-${sem}`;
+
+  // Area cards
+  const cardsEl = document.getElementById('rAreaCards');
+  const areaOrder = ['web', 'google', 'facebook', 'instagram', 'tiktok', 'linkedin', 'youtube'];
+  const areaNames = { web: 'Sitio web', google: 'Google', facebook: 'Facebook', instagram: 'Instagram', tiktok: 'TikTok', linkedin: 'LinkedIn', youtube: 'YouTube' };
+
+  for (const key of areaOrder) {
+    const scoreData = report.scores?.[key];
+    if (!scoreData) continue;
+    const s = scoreData.available ? scoreData.score : null;
+    const color = s !== null ? semColor(s) : 'na';
+    cardsEl.innerHTML += `
+      <div class="area-card">
+        <div class="area-card-icon">${AREA_ICONS[key] || '📊'}</div>
+        <div class="area-card-name">${areaNames[key] || key}</div>
+        <div class="area-card-score ${color}">${s !== null ? s + '/100' : 'N/A'}</div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill fill-${color}" style="width:${s || 0}%"></div></div>
+      </div>
+    `;
+  }
+
+  // Critical findings
+  const findings = report.interpreted?.criticalFindings;
+  if (findings?.length > 0) {
+    const findingsSection = document.getElementById('rFindingsSection');
+    findingsSection.style.display = 'block';
+    const findingsEl = document.getElementById('rFindings');
+    findingsEl.innerHTML = findings.map(f => `
+      <div class="finding-item">
+        <span class="finding-badge">${f.area}</span>
+        <span class="finding-text">${f.hallazgo}</span>
+      </div>
+    `).join('');
+  }
+
+  // Web indicators
+  const webInterp = report.interpreted?.web;
+  if (webInterp?.available) {
+    document.getElementById('rWebBlock').style.display = 'block';
+    renderIndicators(document.getElementById('rWebIndicators'), webInterp.indicators);
+  }
+
+  // Google indicators
+  const googleInterp = report.interpreted?.google;
+  if (googleInterp?.available) {
+    document.getElementById('rGoogleBlock').style.display = 'block';
+    renderIndicators(document.getElementById('rGoogleIndicators'), googleInterp.indicators);
+  }
+
+  // Social blocks
+  const socialInterps = report.interpreted?.social;
+  const socialGrid = document.getElementById('rSocialGrid');
+  if (socialInterps && Object.keys(socialInterps).length > 0) {
+    document.getElementById('rSocialSection').style.display = 'block';
+    for (const [net, interp] of Object.entries(socialInterps)) {
+      if (!interp.available) continue;
+      const scoreData = report.scores?.[net];
+      const s = scoreData?.score ?? 0;
+      const color = semColor(s);
+      const block = document.createElement('div');
+      block.className = 'indicator-block';
+      block.innerHTML = `
+        <h2>${SOCIAL_ICONS[net] || ''} ${SOCIAL_LABELS[net] || net} <span style="font-size:0.9rem;color:var(--${color})">${s}/100</span></h2>
+        <div class="indicators-list"></div>
+      `;
+      renderIndicators(block.querySelector('.indicators-list'), interp.indicators);
+      socialGrid.appendChild(block);
+    }
+  }
+
+  // AI diagnosis
+  if (report.aiDiagnosis && !report.aiDiagnosis.error && report.aiDiagnosis.narrative) {
+    document.getElementById('rAiBlock').style.display = 'block';
+    document.getElementById('rAiNarrative').textContent = report.aiDiagnosis.narrative;
+    const recsEl = document.getElementById('rAiRecs');
+    (report.aiDiagnosis.recommendations || []).forEach(r => {
+      const li = document.createElement('li');
+      li.textContent = r;
+      recsEl.appendChild(li);
+    });
+  }
+
+  // CTA
+  if (report.ctaLink) {
+    const ctaEl = document.getElementById('rCta');
+    ctaEl.style.display = 'block';
+    const ctaLink = document.getElementById('rCtaLink');
+    ctaLink.href = report.ctaLink;
+    ctaLink.textContent = report.ctaName
+      ? `Hablar con ${report.ctaName}`
+      : 'Hablar con un experto';
+  }
+
+  // Agency footer
+  document.getElementById('rAgencyName').textContent = report.agencyName || 'Heros Digital';
+  if (report.agencyUrl) {
+    document.getElementById('rAgencyUrl').innerHTML = ` · <a href="${report.agencyUrl}" target="_blank">${report.agencyUrl}</a>`;
+  }
+
+  // Show
+  document.getElementById('loadingState').style.display = 'none';
+  document.getElementById('reportContent').style.display = 'block';
+  document.body.classList.add('report-loaded');
+}
+
+loadReport();
+</script>
+
+</body>
+</html>

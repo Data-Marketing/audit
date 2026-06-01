@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vista Interna — Diagnóstico Digital</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="icon" href="/img/logo.svg" type="image/svg+xml" />
+</head>
+<body>
+
+<nav class="navbar no-print">
+  <img src="/img/logo.svg" class="logo" alt="Heros Digital" />
+  <span class="brand">Heros Digital <span class="internal-badge">VISTA INTERNA</span></span>
+</nav>
+
+<div id="loadingState" class="loading-state">
+  <div class="spinner"></div>
+  <p>Cargando datos internos...</p>
+</div>
+
+<div id="reportContent" style="display:none;">
+  <div class="report-page">
+
+    <!-- Header (same as public) -->
+    <div class="report-header">
+      <div class="report-header-meta">
+        <div class="business-name" id="rBusinessName"></div>
+        <div class="domain" id="rDomain"></div>
+        <div class="social-tags" id="rSocialTags"></div>
+        <div class="date" id="rDate"></div>
+      </div>
+      <div class="score-circle-wrap">
+        <div class="score-circle" id="rScoreCircle">
+          <div class="score-number" id="rScoreNumber"></div>
+          <div class="score-total">/100</div>
+        </div>
+        <div id="rBadge" class="score-badge"></div>
+      </div>
+    </div>
+
+    <!-- Action bar -->
+    <div class="action-bar no-print">
+      <a href="#" id="rPublicLink" class="btn btn-outline" target="_blank">🔗 Vista cliente</a>
+      <a href="#" id="rPdfBtn" class="btn btn-outline">📄 Descargar PDF</a>
+      <button onclick="copyAllData()" class="btn btn-outline">📋 Copiar datos</button>
+      <button onclick="window.print()" class="btn btn-outline">🖨️ Imprimir</button>
+    </div>
+
+    <!-- Scores numéricos exactos -->
+    <div class="section">
+      <div class="section-title">Puntuaciones exactas</div>
+      <div class="indicator-block">
+        <div id="rExactScores"></div>
+      </div>
+    </div>
+
+    <!-- Notas manuales -->
+    <div class="notes-block no-print">
+      <h3 style="margin-bottom:12px;">📝 Notas del consultor</h3>
+      <textarea id="notesTextarea" placeholder="Escribe aquí tus observaciones o notas adicionales para este cliente. Se incluirán en el PDF si se genera desde esta vista."></textarea>
+      <button onclick="saveNotes()" class="btn btn-outline" style="margin-top:8px;">Guardar notas</button>
+      <span id="notesSaved" style="font-size:0.85rem;color:var(--green);margin-left:8px;display:none;">✅ Guardado</span>
+    </div>
+
+    <!-- Area summary cards -->
+    <div class="section">
+      <div class="section-title">Resumen por área</div>
+      <div class="area-cards" id="rAreaCards"></div>
+    </div>
+
+    <!-- Critical findings -->
+    <div id="rFindingsSection" style="display:none;">
+      <div class="findings-block">
+        <h2>⚠️ Hallazgos críticos</h2>
+        <div id="rFindings"></div>
+      </div>
+    </div>
+
+    <!-- Web -->
+    <div id="rWebBlock" style="display:none;" class="section">
+      <div class="section-title">Sitio web — indicadores</div>
+      <div class="indicator-block">
+        <div id="rWebIndicators"></div>
+      </div>
+    </div>
+
+    <!-- Google -->
+    <div id="rGoogleBlock" style="display:none;" class="section">
+      <div class="section-title">Google — indicadores</div>
+      <div class="indicator-block">
+        <div id="rGoogleIndicators"></div>
+      </div>
+    </div>
+
+    <!-- Social -->
+    <div id="rSocialSection" class="section" style="display:none;">
+      <div class="section-title">Redes sociales — indicadores</div>
+      <div class="social-grid" id="rSocialGrid"></div>
+    </div>
+
+    <!-- AI -->
+    <div id="rAiBlock" style="display:none;" class="ai-block">
+      <h2>🤖 Diagnóstico IA</h2>
+      <p class="ai-narrative" id="rAiNarrative"></p>
+      <ol class="ai-recs" id="rAiRecs"></ol>
+    </div>
+
+    <!-- JSON raw data -->
+    <div class="section">
+      <div class="section-title">Datos crudos por collector</div>
+      <div id="rJsonBlocks"></div>
+    </div>
+
+    <div class="report-footer">
+      Vista interna · Diagnóstico Digital Heros ·
+      <span id="rAgencyName"></span>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const SOCIAL_ICONS = { facebook: '📘', instagram: '📷', tiktok: '🎵', linkedin: '💼', youtube: '▶️' };
+const SOCIAL_LABELS = { facebook: 'Facebook', instagram: 'Instagram', tiktok: 'TikTok', linkedin: 'LinkedIn', youtube: 'YouTube' };
+const AREA_ICONS = { web: '🌐', google: '🔍', facebook: '📘', instagram: '📷', tiktok: '🎵', linkedin: '💼', youtube: '▶️' };
+
+let reportData = null;
+
+function getReportId() {
+  const parts = window.location.pathname.split('/');
+  return parts[parts.length - 1] || parts[parts.length - 2];
+}
+
+function semColor(score) {
+  if (score >= 80) return 'verde';
+  if (score >= 60) return 'amarillo';
+  return 'rojo';
+}
+
+function badgeLabel(sem) {
+  return sem === 'verde' ? 'Presencia Sólida' : sem === 'amarillo' ? 'En Desarrollo' : 'Necesita Atención';
+}
+
+function renderIndicators(container, indicators) {
+  container.innerHTML = indicators.map(ind => `
+    <div class="indicator-row">
+      <div class="indicator-dot dot-${ind.estado}"></div>
+      <div class="indicator-content">
+        <div class="indicator-name">${ind.nombre}</div>
+        <div class="indicator-value">${ind.valorMedido}</div>
+        <div class="indicator-text">${ind.interpretacion}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderExactScores(scores, globalScore) {
+  const el = document.getElementById('rExactScores');
+  const rows = [];
+  for (const [key, val] of Object.entries(scores || {})) {
+    if (!val.available) continue;
+    const breakdownStr = Object.entries(val.breakdown || {})
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(' | ');
+    rows.push(`
+      <div class="indicator-row">
+        <div class="indicator-dot dot-${semColor(val.score)}"></div>
+        <div class="indicator-content">
+          <div class="indicator-name">${AREA_ICONS[key] || ''} ${key} — <strong>${val.score}/100</strong></div>
+          <div class="indicator-value" style="font-family:monospace;font-size:0.8rem;">${breakdownStr}</div>
+        </div>
+      </div>
+    `);
+  }
+  rows.push(`<div class="indicator-row"><div class="indicator-content"><strong>PUNTUACIÓN GLOBAL: ${globalScore}/100</strong></div></div>`);
+  el.innerHTML = rows.join('');
+}
+
+function renderJsonBlocks(rawData) {
+  const container = document.getElementById('rJsonBlocks');
+  for (const [key, val] of Object.entries(rawData || {})) {
+    if (key.startsWith('_')) continue;
+    const block = document.createElement('div');
+    block.className = 'json-block';
+    block.innerHTML = `
+      <div class="json-header" onclick="toggleJson(this)">
+        <span>${AREA_ICONS[key] || '📦'} ${key}</span>
+        <span style="color:rgba(255,255,255,0.5);font-size:0.8rem;">▼ Ver datos</span>
+      </div>
+      <div class="json-content">
+        <pre>${escapeHtml(JSON.stringify(val, null, 2))}</pre>
+      </div>
+    `;
+    container.appendChild(block);
+  }
+}
+
+function toggleJson(header) {
+  const content = header.nextElementSibling;
+  content.classList.toggle('open');
+  const arrow = header.querySelector('span:last-child');
+  arrow.textContent = content.classList.contains('open') ? '▲ Ocultar' : '▼ Ver datos';
+}
+
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function saveNotes() {
+  const notes = document.getElementById('notesTextarea').value;
+  const reportId = getReportId();
+  localStorage.setItem(`notes_${reportId}`, notes);
+  const saved = document.getElementById('notesSaved');
+  saved.style.display = 'inline';
+  setTimeout(() => { saved.style.display = 'none'; }, 2000);
+}
+
+function copyAllData() {
+  if (!reportData) return;
+  const text = JSON.stringify(reportData, null, 2);
+  navigator.clipboard.writeText(text).then(() => {
+    alert('✅ Datos copiados al portapapeles');
+  });
+}
+
+async function loadReport() {
+  const reportId = getReportId();
+  if (!reportId) return;
+
+  document.getElementById('rPdfBtn').href = `/api/export/pdf/${reportId}`;
+  document.getElementById('rPublicLink').href = `/report/${reportId}`;
+
+  let report;
+  try {
+    const res = await fetch(`/api/report/${reportId}`);
+    if (!res.ok) throw new Error('No encontrado');
+    report = await res.json();
+    reportData = report;
+  } catch {
+    document.getElementById('loadingState').innerHTML = '<p style="color:var(--red)">No se pudo cargar el diagnóstico.</p>';
+    return;
+  }
+
+  document.title = `[INT] Diagnóstico — ${report.businessName}`;
+
+  // Header
+  document.getElementById('rBusinessName').textContent = report.businessName;
+  const domain = (() => { try { return new URL(report.websiteUrl).hostname; } catch { return report.websiteUrl; } })();
+  document.getElementById('rDomain').textContent = domain;
+
+  const date = new Date(report.generatedAt).toLocaleDateString('es-PE', { year:'numeric', month:'long', day:'numeric' });
+  document.getElementById('rDate').textContent = `Análisis del ${date}`;
+
+  const tagsEl = document.getElementById('rSocialTags');
+  if (report.socialUrls) {
+    for (const [k, v] of Object.entries(report.socialUrls)) {
+      if (v) tagsEl.innerHTML += `<span class="social-tag">${SOCIAL_ICONS[k] || ''} ${SOCIAL_LABELS[k] || k}</span>`;
+    }
+  }
+
+  const sem = report.semaforo;
+  const circle = document.getElementById('rScoreCircle');
+  circle.classList.add(sem);
+  document.getElementById('rScoreNumber').textContent = report.globalScore;
+  const badge = document.getElementById('rBadge');
+  badge.textContent = badgeLabel(sem);
+  badge.className = `score-badge badge-${sem}`;
+
+  // Area cards
+  const cardsEl = document.getElementById('rAreaCards');
+  const areaOrder = ['web', 'google', 'facebook', 'instagram', 'tiktok', 'linkedin', 'youtube'];
+  const areaNames = { web: 'Sitio web', google: 'Google', facebook: 'Facebook', instagram: 'Instagram', tiktok: 'TikTok', linkedin: 'LinkedIn', youtube: 'YouTube' };
+  for (const key of areaOrder) {
+    const scoreData = report.scores?.[key];
+    if (!scoreData) continue;
+    const s = scoreData.available ? scoreData.score : null;
+    const color = s !== null ? semColor(s) : 'na';
+    cardsEl.innerHTML += `
+      <div class="area-card">
+        <div class="area-card-icon">${AREA_ICONS[key] || '📊'}</div>
+        <div class="area-card-name">${areaNames[key] || key}</div>
+        <div class="area-card-score ${color}">${s !== null ? s + '/100' : 'N/A'}</div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill fill-${color}" style="width:${s || 0}%"></div></div>
+      </div>
+    `;
+  }
+
+  // Exact scores
+  renderExactScores(report.scores, report.globalScore);
+
+  // Findings
+  const findings = report.interpreted?.criticalFindings;
+  if (findings?.length > 0) {
+    document.getElementById('rFindingsSection').style.display = 'block';
+    document.getElementById('rFindings').innerHTML = findings.map(f => `
+      <div class="finding-item">
+        <span class="finding-badge">${f.area}</span>
+        <span class="finding-text">${f.hallazgo}</span>
+      </div>
+    `).join('');
+  }
+
+  // Web
+  if (report.interpreted?.web?.available) {
+    document.getElementById('rWebBlock').style.display = 'block';
+    renderIndicators(document.getElementById('rWebIndicators'), report.interpreted.web.indicators);
+  }
+
+  // Google
+  if (report.interpreted?.google?.available) {
+    document.getElementById('rGoogleBlock').style.display = 'block';
+    renderIndicators(document.getElementById('rGoogleIndicators'), report.interpreted.google.indicators);
+  }
+
+  // Social
+  const socialInterps = report.interpreted?.social;
+  const socialGrid = document.getElementById('rSocialGrid');
+  if (socialInterps && Object.keys(socialInterps).length > 0) {
+    document.getElementById('rSocialSection').style.display = 'block';
+    for (const [net, interp] of Object.entries(socialInterps)) {
+      if (!interp.available) continue;
+      const s = report.scores?.[net]?.score ?? 0;
+      const color = semColor(s);
+      const block = document.createElement('div');
+      block.className = 'indicator-block';
+      block.innerHTML = `<h2>${SOCIAL_ICONS[net] || ''} ${SOCIAL_LABELS[net] || net} <span style="font-size:0.9rem;color:var(--${color})">${s}/100</span></h2><div class="indicators-list"></div>`;
+      renderIndicators(block.querySelector('.indicators-list'), interp.indicators);
+      socialGrid.appendChild(block);
+    }
+  }
+
+  // AI
+  if (report.aiDiagnosis?.narrative) {
+    document.getElementById('rAiBlock').style.display = 'block';
+    document.getElementById('rAiNarrative').textContent = report.aiDiagnosis.narrative;
+    const recsEl = document.getElementById('rAiRecs');
+    (report.aiDiagnosis.recommendations || []).forEach(r => {
+      const li = document.createElement('li'); li.textContent = r; recsEl.appendChild(li);
+    });
+  }
+
+  // JSON blocks
+  renderJsonBlocks(report.rawData);
+
+  // Notes from localStorage
+  const savedNotes = localStorage.getItem(`notes_${reportId}`);
+  if (savedNotes) document.getElementById('notesTextarea').value = savedNotes;
+
+  document.getElementById('rAgencyName').textContent = report.agencyName || 'Heros Digital';
+
+  document.getElementById('loadingState').style.display = 'none';
+  document.getElementById('reportContent').style.display = 'block';
+}
+
+loadReport();
+</script>
+
+</body>
+</html>

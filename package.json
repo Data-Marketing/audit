@@ -1,0 +1,22 @@
+{
+  "name": "audit",
+  "version": "1.0.0",
+  "description": "Diagnóstico Digital Heros — Herramienta de auditoría de presencia digital",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "node -e \"require('http').createServer((req,res)=>{res.writeHead(200);res.end('dev server — use vercel dev')}).listen(3000)\"",
+    "test": "node scripts/test-collectors.js"
+  },
+  "dependencies": {
+    "@sparticuz/chromium": "^123.0.1",
+    "@supabase/supabase-js": "^2.43.1",
+    "playwright-core": "^1.44.0",
+    "puppeteer-core": "^22.9.0",
+    "express-rate-limit": "^7.2.0",
+    "uuid": "^9.0.1"
+  },
+  "license": "MIT"
+}
