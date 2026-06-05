@@ -6,14 +6,7 @@
  * Saves lead to Supabase, kicks off analysis in background, links lead to report.
  */
 const { v4: uuidv4 } = require('uuid');
-const { createClient } = require('@supabase/supabase-js');
-
-function getSupabase() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error('Supabase credentials not configured');
-  return createClient(url, key);
-}
+const { sql } = require('@vercel/postgres');
 
 // Simple in-memory rate limiter (per IP, resets on cold start)
 const ipHits = new Map();
@@ -83,38 +76,23 @@ module.exports = async function handler(req, res) {
   const effectiveBusinessName = businessName || companyName;
 
   try {
-    const supabase = getSupabase();
-
     // 1. Create the report record
-    const { error: reportError } = await supabase.from('reports').insert({
-      id: jobId,
-      business_name: effectiveBusinessName,
-      website_url: websiteUrl || '',
-      social_urls: socialUrls,
-      status: 'pending',
-    });
-    if (reportError) throw reportError;
+    await sql`
+      INSERT INTO reports (id, business_name, website_url, social_urls, status)
+      VALUES (${jobId}, ${effectiveBusinessName}, ${websiteUrl || ''}, ${JSON.stringify(socialUrls)}, 'pending')
+    `;
 
-    // 2. Save the lead, linked to this report
-    const { error: leadError } = await supabase.from('leads').insert({
-      full_name: fullName,
-      email,
-      phone,
-      company_name: companyName,
-      product_service: productService,
-      website_url: websiteUrl || null,
-      facebook_url: socialUrls.facebook || null,
-      instagram_url: socialUrls.instagram || null,
-      tiktok_url: socialUrls.tiktok || null,
-      linkedin_url: socialUrls.linkedin || null,
-      report_id: jobId,
-    });
-    if (leadError) {
-      // Non-fatal — log but don't block the analysis
-      console.error('Lead insert error:', leadError);
+    // 2. Save the lead, linked to this report (non-fatal)
+    try {
+      await sql`
+        INSERT INTO leads (full_name, email, phone, company_name, product_service, website_url, facebook_url, instagram_url, tiktok_url, linkedin_url, report_id)
+        VALUES (${fullName}, ${email}, ${phone}, ${companyName}, ${productService}, ${websiteUrl || null}, ${socialUrls.facebook || null}, ${socialUrls.instagram || null}, ${socialUrls.tiktok || null}, ${socialUrls.linkedin || null}, ${jobId})
+      `;
+    } catch (leadErr) {
+      console.error('Lead insert error:', leadErr);
     }
   } catch (err) {
-    console.error('Supabase insert error:', err);
+    console.error('DB insert error:', err);
     return res.status(500).json({ error: 'Error al crear el reporte: ' + err.message });
   }
 
@@ -125,48 +103,44 @@ module.exports = async function handler(req, res) {
 };
 
 async function runAnalysisBackground(jobId, businessName, websiteUrl, socialUrls) {
-  const { createClient } = require('@supabase/supabase-js');
-  const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+  const { sql } = require('@vercel/postgres');
 
   async function updateStatus(status, extra = {}) {
-    await supabase.from('reports').update({ status, ...extra }).eq('id', jobId);
+    const sets = ['status = ' + `'${status}'`];
+    // Build dynamic update via individual calls to keep it simple
+    await sql`UPDATE reports SET status = ${status} WHERE id = ${jobId}`;
+    if (extra.raw_data !== undefined) {
+      await sql`UPDATE reports SET raw_data = ${JSON.stringify(extra.raw_data)} WHERE id = ${jobId}`;
+    }
   }
 
   try {
-    await updateStatus('running');
+    await sql`UPDATE reports SET status = 'running' WHERE id = ${jobId}`;
 
     const { runAllCollectors } = require('../src/collectors/index');
     const { buildReport } = require('../src/report/builder');
 
-    // Progress stored in a separate key — SSE endpoint reads from Supabase
     const progressLog = [];
     const onProgress = async (step, status) => {
       progressLog.push({ step, status, ts: Date.now() });
-      await supabase
-        .from('reports')
-        .update({ raw_data: { _progress: progressLog } })
-        .eq('id', jobId)
-        .then(() => {})
-        .catch(() => {});
+      await sql`UPDATE reports SET raw_data = ${JSON.stringify({ _progress: progressLog })} WHERE id = ${jobId}`.catch(() => {});
     };
 
     const rawData = await runAllCollectors({ websiteUrl, socialUrls, onProgress });
     const report = await buildReport({ businessName, websiteUrl, socialUrls, rawData });
 
-    await supabase.from('reports').update({
-      status: 'done',
-      raw_data: rawData,
-      scores: report.scores,
-      interpreted: report.interpreted,
-      ai_diagnosis: report.aiDiagnosis,
-      global_score: report.globalScore,
-    }).eq('id', jobId);
+    await sql`
+      UPDATE reports SET
+        status = 'done',
+        raw_data = ${JSON.stringify(rawData)},
+        scores = ${JSON.stringify(report.scores)},
+        interpreted = ${JSON.stringify(report.interpreted)},
+        ai_diagnosis = ${JSON.stringify(report.aiDiagnosis)},
+        global_score = ${report.globalScore}
+      WHERE id = ${jobId}
+    `;
   } catch (err) {
     console.error('Analysis error:', err);
-    await supabase
-      .from('reports')
-      .update({ status: 'error', raw_data: { error: err.message } })
-      .eq('id', jobId)
-      .catch(() => {});
+    await sql`UPDATE reports SET status = 'error', raw_data = ${JSON.stringify({ error: err.message })} WHERE id = ${jobId}`.catch(() => {});
   }
 }

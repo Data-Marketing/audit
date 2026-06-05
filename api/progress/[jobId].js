@@ -2,17 +2,12 @@
  * GET /api/progress/:jobId
  * Server-Sent Events stream for job progress
  */
-const { createClient } = require('@supabase/supabase-js');
+const { sql } = require('@vercel/postgres');
 
 module.exports = async function handler(req, res) {
   const { jobId } = req.query;
 
   if (!jobId) return res.status(400).json({ error: 'jobId requerido' });
-
-  const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_ANON_KEY
-  );
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -35,13 +30,10 @@ module.exports = async function handler(req, res) {
     attempts++;
 
     try {
-      const { data, error } = await supabase
-        .from('reports')
-        .select('status, raw_data, global_score')
-        .eq('id', jobId)
-        .single();
+      const { rows } = await sql`SELECT status, raw_data, global_score FROM reports WHERE id = ${jobId} LIMIT 1`;
+      const data = rows[0];
 
-      if (error || !data) {
+      if (!data) {
         send('error', { message: 'Reporte no encontrado' });
         res.end();
         return;

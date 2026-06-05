@@ -2,7 +2,7 @@
  * GET /api/export/pdf/:reportId
  * Generates and streams a PDF of the report
  */
-const { createClient } = require('@supabase/supabase-js');
+const { sql } = require('@vercel/postgres');
 const { generatePdf } = require('../../../src/report/pdf');
 
 module.exports = async function handler(req, res) {
@@ -10,18 +10,10 @@ module.exports = async function handler(req, res) {
 
   if (!reportId) return res.status(400).json({ error: 'reportId requerido' });
 
-  const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_ANON_KEY
-  );
+  const { rows } = await sql`SELECT business_name, status FROM reports WHERE id = ${reportId} LIMIT 1`;
+  const data = rows[0];
 
-  const { data, error } = await supabase
-    .from('reports')
-    .select('business_name, status')
-    .eq('id', reportId)
-    .single();
-
-  if (error || !data) return res.status(404).json({ error: 'Reporte no encontrado' });
+  if (!data) return res.status(404).json({ error: 'Reporte no encontrado' });
   if (data.status !== 'done') return res.status(400).json({ error: 'El reporte aún no está listo' });
 
   try {

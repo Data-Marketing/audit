@@ -2,26 +2,17 @@
  * GET /api/report/:reportId
  * Returns full report JSON
  */
-const { createClient } = require('@supabase/supabase-js');
-const { buildReport } = require('../../src/report/builder');
+const { sql } = require('@vercel/postgres');
 
 module.exports = async function handler(req, res) {
   const { reportId } = req.query;
 
   if (!reportId) return res.status(400).json({ error: 'reportId requerido' });
 
-  const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_ANON_KEY
-  );
+  const { rows } = await sql`SELECT * FROM reports WHERE id = ${reportId} LIMIT 1`;
+  const data = rows[0];
 
-  const { data, error } = await supabase
-    .from('reports')
-    .select('*')
-    .eq('id', reportId)
-    .single();
-
-  if (error || !data) {
+  if (!data) {
     return res.status(404).json({ error: 'Reporte no encontrado' });
   }
 
