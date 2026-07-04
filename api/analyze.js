@@ -96,51 +96,72 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: 'Error al crear el reporte: ' + err.message });
   }
 
-  // Trigger analysis in background (fire-and-forget within Vercel's 60s limit)
-  runAnalysisBackground(jobId, effectiveBusinessName, websiteUrl || '', socialUrls).catch(console.error);
+  const isLocalDev = !process.env.VERCEL_ENV || process.env.VERCEL_ENV === 'development';
+
+  // In `vercel dev`, fire-and-forget work is unreliable because the emulated
+  // invocation can finish before the background promise advances. Run inline
+  // locally so the report actually reaches collectors/AI.
+  if (isLocalDev) {
+    await runAnalysisBackground(jobId, effectiveBusinessName, websiteUrl || '', socialUrls).catch(console.error);
+  } else {
+    runAnalysisBackground(jobId, effectiveBusinessName, websiteUrl || '', socialUrls).catch(console.error);
+  }
 
   res.status(202).json({ jobId });
 };
 
 async function runAnalysisBackground(jobId, businessName, websiteUrl, socialUrls) {
   const { sql } = require('@vercel/postgres');
+  const isLocalDev = !process.env.VERCEL_ENV || process.env.VERCEL_ENV === 'development';
+  const analysisTimeoutMs = isLocalDev ? 300000 : 58000;
 
-  async function updateStatus(status, extra = {}) {
-    const sets = ['status = ' + `'${status}'`];
-    // Build dynamic update via individual calls to keep it simple
-    await sql`UPDATE reports SET status = ${status} WHERE id = ${jobId}`;
-    if (extra.raw_data !== undefined) {
-      await sql`UPDATE reports SET raw_data = ${JSON.stringify(extra.raw_data)} WHERE id = ${jobId}`;
-    }
-  }
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(
+      () => reject(new Error('Análisis excedió el tiempo límite')),
+      analysisTimeoutMs,
+    );
+  });
 
   try {
-    await sql`UPDATE reports SET status = 'running' WHERE id = ${jobId}`;
-
-    const { runAllCollectors } = require('../src/collectors/index');
-    const { buildReport } = require('../src/report/builder');
-
-    const progressLog = [];
-    const onProgress = async (step, status) => {
-      progressLog.push({ step, status, ts: Date.now() });
-      await sql`UPDATE reports SET raw_data = ${JSON.stringify({ _progress: progressLog })} WHERE id = ${jobId}`.catch(() => {});
-    };
-
-    const rawData = await runAllCollectors({ websiteUrl, socialUrls, onProgress });
-    const report = await buildReport({ businessName, websiteUrl, socialUrls, rawData });
-
-    await sql`
-      UPDATE reports SET
-        status = 'done',
-        raw_data = ${JSON.stringify(rawData)},
-        scores = ${JSON.stringify(report.scores)},
-        interpreted = ${JSON.stringify(report.interpreted)},
-        ai_diagnosis = ${JSON.stringify(report.aiDiagnosis)},
-        global_score = ${report.globalScore}
-      WHERE id = ${jobId}
-    `;
+    await Promise.race([
+      executeAnalysis(jobId, businessName, websiteUrl, socialUrls, sql),
+      timeoutPromise,
+    ]);
   } catch (err) {
     console.error('Analysis error:', err);
-    await sql`UPDATE reports SET status = 'error', raw_data = ${JSON.stringify({ error: err.message })} WHERE id = ${jobId}`.catch(() => {});
+    await sql`
+      UPDATE reports SET status = 'error', raw_data = ${JSON.stringify({ error: err.message })}
+      WHERE id = ${jobId}
+    `.catch(() => {});
   }
+}
+
+async function executeAnalysis(jobId, businessName, websiteUrl, socialUrls, sql) {
+  await sql`UPDATE reports SET status = 'running' WHERE id = ${jobId}`;
+
+  const { runAllCollectors } = require('../src/collectors/index');
+  const { buildReport } = require('../src/report/builder');
+
+  const progressLog = [];
+  const onProgress = async (step, status) => {
+    progressLog.push({ step, status, ts: Date.now() });
+    await sql`
+      UPDATE reports SET raw_data = ${JSON.stringify({ _progress: progressLog })}
+      WHERE id = ${jobId}
+    `.catch(() => {});
+  };
+
+  const rawData = await runAllCollectors({ websiteUrl, socialUrls, onProgress });
+  const report = await buildReport({ businessName, websiteUrl, socialUrls, rawData });
+
+  await sql`
+    UPDATE reports SET
+      status = 'done',
+      raw_data = ${JSON.stringify(rawData)},
+      scores = ${JSON.stringify(report.scores)},
+      interpreted = ${JSON.stringify(report.interpreted)},
+      ai_diagnosis = ${JSON.stringify(report.aiDiagnosis)},
+      global_score = ${report.globalScore}
+    WHERE id = ${jobId}
+  `;
 }

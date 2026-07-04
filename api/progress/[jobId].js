@@ -23,7 +23,8 @@ module.exports = async function handler(req, res) {
   let seen = new Set();
   let done = false;
   let attempts = 0;
-  const maxAttempts = 60; // 2min max
+  const isLocalDev = !process.env.VERCEL_ENV || process.env.VERCEL_ENV === 'development';
+  const maxAttempts = isLocalDev ? 150 : 60; // 5min local, 2min production
 
   const poll = async () => {
     if (done) return;
@@ -57,7 +58,9 @@ module.exports = async function handler(req, res) {
       }
 
       if (data.status === 'error') {
-        send('error', { message: 'El análisis falló. Por favor intenta nuevamente.' });
+        send('error', {
+          message: data.raw_data?.error || 'El análisis falló. Por favor intenta nuevamente.',
+        });
         done = true;
         res.end();
         return;

@@ -19,13 +19,15 @@ const { collectYoutube } = require('./youtube');
  */
 async function runAllCollectors({ websiteUrl, socialUrls = {}, onProgress = () => {} }) {
   const results = {};
+  const isLocalDev = !process.env.VERCEL_ENV || process.env.VERCEL_ENV === 'development';
+  const collectorTimeoutMs = isLocalDev ? 90000 : 55000;
 
   const run = async (name, fn, ...args) => {
     onProgress(name, 'running');
     try {
       const data = await Promise.race([
         fn(...args),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout')), 55000)),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout')), collectorTimeoutMs)),
       ]);
       results[name] = data;
       onProgress(name, 'done');
