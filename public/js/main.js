@@ -99,7 +99,7 @@ form.addEventListener('submit', async (e) => {
 
   const fullName = document.getElementById('fullName').value.trim();
   const email = document.getElementById('email').value.trim();
-  const phonePrefix = document.getElementById('phonePrefix').value.trim();
+  const phonePrefix = document.getElementById('phonePrefix').value.trim() || '+51';
   const phone = document.getElementById('phone').value.trim();
   const companyName = document.getElementById('companyName').value.trim();
   const productService = document.getElementById('productService').value.trim();

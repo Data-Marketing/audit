@@ -2,34 +2,30 @@
  * PDF generator — renders report.html via Puppeteer and returns PDF buffer
  */
 
+const { isServerlessProduction, findLocalExecutable } = require('../collectors/_browser');
+
 async function generatePdf(reportUrl, businessName) {
   let browser;
   try {
     const puppeteer = require('puppeteer-core');
+    const launchOpts = { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] };
 
-    if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_VERSION) {
+    if (isServerlessProduction()) {
       const chromium = require('@sparticuz/chromium');
       browser = await puppeteer.launch({
+        ...launchOpts,
         args: chromium.args,
         executablePath: await chromium.executablePath(),
         headless: chromium.headless,
       });
     } else {
-      const localPaths = [
-        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-        '/usr/bin/google-chrome',
-        '/usr/bin/chromium-browser',
-      ];
-      const fs = require('fs');
-      let executablePath;
-      for (const p of localPaths) {
-        if (fs.existsSync(p)) { executablePath = p; break; }
+      try {
+        browser = await puppeteer.launch({ ...launchOpts, channel: 'chrome' });
+      } catch {
+        const executablePath = findLocalExecutable();
+        if (!executablePath) throw new Error('No se encontró Chrome para generar el PDF.');
+        browser = await puppeteer.launch({ ...launchOpts, executablePath });
       }
-      browser = await puppeteer.launch({
-        executablePath,
-        headless: true,
-        args: ['--no-sandbox'],
-      });
     }
 
     const page = await browser.newPage();
