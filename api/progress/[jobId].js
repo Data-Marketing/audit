@@ -23,8 +23,7 @@ module.exports = async function handler(req, res) {
   let seen = new Set();
   let done = false;
   let attempts = 0;
-  const isLocalDev = !process.env.VERCEL_ENV || process.env.VERCEL_ENV === 'development';
-  const maxAttempts = isLocalDev ? 150 : 60; // 5min local, 2min production
+  const maxAttempts = 150; // 5 min @ 2s poll interval
 
   const poll = async () => {
     if (done) return;
