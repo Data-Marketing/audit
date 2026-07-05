@@ -7,6 +7,11 @@
  */
 const { v4: uuidv4 } = require('uuid');
 const { sql } = require('@vercel/postgres');
+const { waitUntil } = require('@vercel/functions');
+
+function isLocalDev() {
+  return !process.env.VERCEL_ENV || process.env.VERCEL_ENV === 'development';
+}
 
 // Simple in-memory rate limiter (per IP, resets on cold start)
 const ipHits = new Map();
@@ -96,15 +101,19 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: 'Error al crear el reporte: ' + err.message });
   }
 
-  const isLocalDev = !process.env.VERCEL_ENV || process.env.VERCEL_ENV === 'development';
+  const analysisPromise = runAnalysisBackground(
+    jobId,
+    effectiveBusinessName,
+    websiteUrl || '',
+    socialUrls,
+  ).catch(console.error);
 
-  // In `vercel dev`, fire-and-forget work is unreliable because the emulated
-  // invocation can finish before the background promise advances. Run inline
-  // locally so the report actually reaches collectors/AI.
-  if (isLocalDev) {
-    await runAnalysisBackground(jobId, effectiveBusinessName, websiteUrl || '', socialUrls).catch(console.error);
+  // Local: await inline (`vercel dev` kills fire-and-forget).
+  // Production: respond 202 immediately but keep the function alive via waitUntil.
+  if (isLocalDev()) {
+    await analysisPromise;
   } else {
-    runAnalysisBackground(jobId, effectiveBusinessName, websiteUrl || '', socialUrls).catch(console.error);
+    waitUntil(analysisPromise);
   }
 
   res.status(202).json({ jobId });
@@ -112,8 +121,7 @@ module.exports = async function handler(req, res) {
 
 async function runAnalysisBackground(jobId, businessName, websiteUrl, socialUrls) {
   const { sql } = require('@vercel/postgres');
-  const isLocalDev = !process.env.VERCEL_ENV || process.env.VERCEL_ENV === 'development';
-  const analysisTimeoutMs = isLocalDev ? 300000 : 58000;
+  const analysisTimeoutMs = isLocalDev() ? 300000 : 290000;
 
   const timeoutPromise = new Promise((_, reject) => {
     setTimeout(

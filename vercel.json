@@ -1,5 +1,7 @@
 {
   "functions": {
+    "api/analyze.js": { "maxDuration": 300 },
+    "api/progress/[jobId].js": { "maxDuration": 300 },
     "api/**/*.js": { "maxDuration": 60 }
   },
   "rewrites": [

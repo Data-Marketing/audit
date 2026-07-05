@@ -20,7 +20,7 @@ const { collectYoutube } = require('./youtube');
 async function runAllCollectors({ websiteUrl, socialUrls = {}, onProgress = () => {} }) {
   const results = {};
   const isLocalDev = !process.env.VERCEL_ENV || process.env.VERCEL_ENV === 'development';
-  const collectorTimeoutMs = isLocalDev ? 90000 : 55000;
+  const collectorTimeoutMs = isLocalDev ? 90000 : 45000;
 
   const run = async (name, fn, ...args) => {
     onProgress(name, 'running');
@@ -38,8 +38,10 @@ async function runAllCollectors({ websiteUrl, socialUrls = {}, onProgress = () =
   };
 
   // Sequential to avoid overloading browser instances
-  await run('web', collectWeb, websiteUrl);
-  await run('seo', collectSeo, websiteUrl);
+  if (websiteUrl && websiteUrl.trim()) {
+    await run('web', collectWeb, websiteUrl);
+    await run('seo', collectSeo, websiteUrl);
+  }
   if (socialUrls.facebook)  await run('facebook',  collectFacebook,  socialUrls.facebook);
   if (socialUrls.instagram) await run('instagram', collectInstagram, socialUrls.instagram);
   if (socialUrls.tiktok)    await run('tiktok',    collectTiktok,    socialUrls.tiktok);

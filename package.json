@@ -7,10 +7,12 @@
     "node": ">=18"
   },
   "scripts": {
+    "dev": "vercel dev",
     "test": "node scripts/test-collectors.js"
   },
   "dependencies": {
     "@sparticuz/chromium": "^123.0.1",
+    "@vercel/functions": "^3.7.5",
     "@vercel/postgres": "^0.10.0",
     "express-rate-limit": "^7.2.0",
     "playwright-core": "^1.44.0",
